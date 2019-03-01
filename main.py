@@ -8,6 +8,7 @@ import ast
 from shapely.ops import transform
 from functools import partial
 import pyproj
+import sys
 
 
 INFTY = 1000000
@@ -118,9 +119,19 @@ def cut(line, distance):
 
 ######### End of helper functions ############
 
+label_lng = -77.04176545143127
+label_lat = 38.913463432291195
+
+if len(sys.argv) < 3:
+    print("No label coordinates entered. Using default sample coordinate.")
+    print("Usage: python main.py [lat] [lng]")
+else:
+    label_lat = float(sys.argv[1])
+    label_lng = float(sys.argv[2])
+
 # Points to compute results for, in (lng, lat) form
 # Right now only the first point in this list is processed
-points = [(-77.04176545143127, 38.913463432291195)]
+points = [(label_lng, label_lat)]
 
 # Load the street network geojson file
 with open(os.path.join("input","full_dc.geojson")) as f:
