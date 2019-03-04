@@ -24,7 +24,8 @@ Type "help", "copyright", "credits" or "license" for more information.
 ### Understanding the output
 The tool outputs two metrics; the first is an absolute distance, in meters, from the (closer) end of the nearest street segment to the point on the segment closest to the input point. The other is a "middleness" metric, expressed as a percentage. It is 0% at both ends of the nearest street segment and 100% at the exact center of the segment. Refer to [this diagram](https://i.imgur.com/QYIM6B0.png) for further detail.
 
-To assist in debugging, a geojson representation of the street segment closest to the input point is also printed.
+To assist in debugging, a geojson representation of the street segment closest to the input point can be printed; simply
+uncomment the debug print lines in `intersection_proximity.py`.
 
 ### Other cities
 You can use this tool with other cities by replacing the geojson file in the `input` folder with your own geojson file representing the street network of the city you are interested in.
