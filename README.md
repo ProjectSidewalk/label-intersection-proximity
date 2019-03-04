@@ -8,9 +8,18 @@ $ pip install -r requirements.txt
 ```
 
 Usage:
-```bash
-$ python main.py [lat] [lng]
+This tool can be used as a python module. Call compute_proximity(lat, lng). It will
+return the result tuple (absolute_dist_in_meters, middleness_percentage).
+```python
+Python 3.6.5 |Anaconda, Inc.| (default, Apr 29 2018, 16:14:56) 
+[GCC 7.2.0] on linux
+Type "help", "copyright", "credits" or "license" for more information.
+>>> import intersection_proximity
+>>> intersection_proximity.compute_proximity(38.91572572043545,-77.03992009162903)
+(198.88772971857827, 90.87609851973484)
+>>>
 ```
+
 
 ### Understanding the output
 The tool outputs two metrics; the first is an absolute distance, in meters, from the (closer) end of the nearest street segment to the point on the segment closest to the input point. The other is a "middleness" metric, expressed as a percentage. It is 0% at both ends of the nearest street segment and 100% at the exact center of the segment. Refer to [this diagram](https://i.imgur.com/QYIM6B0.png) for further detail.

@@ -13,6 +13,7 @@ import sys
 
 INFTY = 1000000
 MIN_SIZE = .0006
+street_network_index = None
 
 ######### Finding line closest to point helper functions ############
 # From: https://stackoverflow.com/questions/46170577/find-closest-line-to-each-point-on-big-dataset-possibly-using-shapely-and-rtree
@@ -119,85 +120,85 @@ def cut(line, distance):
 
 ######### End of helper functions ############
 
-label_lng = -77.04176545143127
-label_lat = 38.913463432291195
+def make_street_network_index():
+    # Load the street network geojson file
+    with open(os.path.join("input","full_dc.geojson")) as f:
+        streets_gj = geojson.load(f)
 
-if len(sys.argv) < 3:
-    print("No label coordinates entered. Using default sample coordinate.")
-    print("Usage: python main.py [lat] [lng]")
-else:
-    label_lat = float(sys.argv[1])
-    label_lng = float(sys.argv[2])
+    # Read streets into a list of street edge id->coordinates mapping
+    streets_list = streets_gj['features']
+    edge_id_to_coords_list = []
+    for street in streets_list:
+        edge_id_to_coords = extract_street_coords_from_geojson(street)
+        edge_id_to_coords_list.append(edge_id_to_coords)
 
-# Points to compute results for, in (lng, lat) form
-# Right now only the first point in this list is processed
-points = [(label_lng, label_lat)]
+    # Index the streets
+    idx = get_rtree(edge_id_to_coords_list)
+    return idx
 
-# Load the street network geojson file
-with open(os.path.join("input","full_dc.geojson")) as f:
-    streets_gj = geojson.load(f)
+def compute_proximity(label_lat, label_lng):
+    global street_network_index
+    # Index the street network if not done yet
+    if street_network_index is None:
+        street_network_index = make_street_network_index()
 
-# Read streets into a list of street edge id->coordinates mapping
-streets_list = streets_gj['features']
-edge_id_to_coords_list = []
-for street in streets_list:
-    edge_id_to_coords = extract_street_coords_from_geojson(street)
-    edge_id_to_coords_list.append(edge_id_to_coords)
+    # Points to compute results for, in (lng, lat) form
+    # Right now only the first point in this list is processed
+    points = [(label_lng, label_lat)]
 
-# Index the streets
-idx = get_rtree(edge_id_to_coords_list)
-closest_line_for_each_point = get_closest_line_to_each_point(idx, points)
+    closest_line_for_each_point = get_closest_line_to_each_point(street_network_index, points)
 
-# Just process the first point for now. Get the coords of line closest to first point.
-line_coords = list(closest_line_for_each_point[points[0]][1])
+    # Just process the first point for now. Get the coords of line closest to first point.
+    line_coords = list(closest_line_for_each_point[points[0]][1])
 
-# Also get the point on the line that is closest to the label coordinate
-closest_point_on_line_coords = closest_line_for_each_point[points[0]][2]
-closest_point_on_line = Point(closest_point_on_line_coords[0], closest_point_on_line_coords[1])
+    # Also get the point on the line that is closest to the label coordinate
+    closest_point_on_line_coords = closest_line_for_each_point[points[0]][2]
+    closest_point_on_line = Point(closest_point_on_line_coords[0], closest_point_on_line_coords[1])
 
-# For convenience, the same line coords in a format that doesn't use tuples
-line_coords_as_list = []
-for coord in line_coords:
-    line_coords_as_list.append(list(coord))
+    # For convenience, the same line coords in a format that doesn't use tuples
+    line_coords_as_list = []
+    for coord in line_coords:
+        line_coords_as_list.append(list(coord))
 
-# Turn the line coords into a shapley line
-shapely_line = LineString(ast.literal_eval(str(line_coords_as_list)))
+    # Turn the line coords into a shapley line
+    shapely_line = LineString(ast.literal_eval(str(line_coords_as_list)))
 
-line_length = shapely_line.length
-line_start_to_closest_pt_len = shapely_line.project(closest_point_on_line)
+    line_length = shapely_line.length
+    line_start_to_closest_pt_len = shapely_line.project(closest_point_on_line)
 
-# Position of label on the segment expressed as a fraction between 0 and 1
-point_position_fraction = line_start_to_closest_pt_len / line_length
-print("Position of label along segment expressed as a fraction (0-1): {}".format(point_position_fraction))
+    # Position of label on the segment expressed as a fraction between 0 and 1
+    point_position_fraction = line_start_to_closest_pt_len / line_length
+    # print("Position of label along segment expressed as a fraction (0-1): {}".format(point_position_fraction))
 
-# Position of label on the segment expressed as a percentage from 0 to 100,
-# where 50 represents the middle of the segment and 0 represents both ends
-middleness_pct = 100 * (min(abs(point_position_fraction - 0),abs(point_position_fraction-1)) / 0.5)
-print("Middleness percentage (0-100): {}".format(middleness_pct))
+    # Position of label on the segment expressed as a percentage from 0 to 100,
+    # where 50 represents the middle of the segment and 0 represents both ends
+    middleness_pct = 100 * (min(abs(point_position_fraction - 0),abs(point_position_fraction-1)) / 0.5)
+    # print("Middleness percentage (0-100): {}".format(middleness_pct))
 
-# Get the two segments on either side of the label to compute their lengths
-cut_point = shapely_line.project(closest_point_on_line)
-split_segments = cut(shapely_line, line_start_to_closest_pt_len)
+    # Get the two segments on either side of the label to compute their lengths
+    cut_point = shapely_line.project(closest_point_on_line)
+    split_segments = cut(shapely_line, line_start_to_closest_pt_len)
 
-# We want to find lengths of the two segments in real-world units (meters) rather
-# than degrees, so they need to be projected
-# https://gis.stackexchange.com/questions/80881/what-is-unit-of-shapely-length-attribute
-project = partial(
-    pyproj.transform,
-    pyproj.Proj(init='EPSG:4326'),
-    pyproj.Proj(init='EPSG:32633'))
+    # We want to find lengths of the two segments in real-world units (meters) rather
+    # than degrees, so they need to be projected
+    # https://gis.stackexchange.com/questions/80881/what-is-unit-of-shapely-length-attribute
+    project = partial(
+        pyproj.transform,
+        pyproj.Proj(init='EPSG:4326'),
+        pyproj.Proj(init='EPSG:32633'))
 
-left_segment_transformed = transform(project, split_segments[0])
-left_segment_length = left_segment_transformed.length
+    left_segment_transformed = transform(project, split_segments[0])
+    left_segment_length = left_segment_transformed.length
 
-right_segment_transformed = transform(project, split_segments[1])
-right_segment_length = right_segment_transformed.length 
+    right_segment_transformed = transform(project, split_segments[1])
+    right_segment_length = right_segment_transformed.length 
 
-# The shorter segment represents the distance from label to end of street segment
-distance_to_segment_end = min(left_segment_length, right_segment_length)
-print("Distance to end of segment: {} meters".format(distance_to_segment_end))
+    # The shorter segment represents the distance from label to end of street segment
+    distance_to_segment_end = min(left_segment_length, right_segment_length)
+    # print("Distance to end of segment: {} meters".format(distance_to_segment_end))
 
-# Print the line as geojson
-print("For debugging, here is the line segment found closest to the label:")
-print(geojson.LineString(line_coords))
+    # Print the line as geojson
+    # print("For debugging, here is the line segment found closest to the label:")
+    # print(geojson.LineString(line_coords))
+    return (distance_to_segment_end, middleness_pct)
 
