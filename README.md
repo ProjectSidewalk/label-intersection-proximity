@@ -1,4 +1,5 @@
 ## label-intersection-proximity
+**This repository uses Git LFS; ensure you have git-lfs installed on your system if you would like data files to be cloned.**
 
 Given a point in DC, this tool computes the point's proximity to the end of the nearest OpenStreetMap road segment. This is an approximation for the point's proximity to an intersection. The tool is written in Python 3 using shapely and rtree.
 
