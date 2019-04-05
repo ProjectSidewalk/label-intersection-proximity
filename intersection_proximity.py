@@ -122,7 +122,7 @@ def cut(line, distance):
 
 def make_street_network_index():
     # Load the street network geojson file
-    with open(os.path.join("input","full_dc.geojson")) as f:
+    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "input","full_dc.geojson")) as f:
         streets_gj = geojson.load(f)
 
     # Read streets into a list of street edge id->coordinates mapping
