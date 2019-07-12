@@ -9,42 +9,51 @@ from shapely.ops import transform
 from functools import partial
 import pyproj
 import sys
-
+import helper
 
 INFTY = 1000000
 MIN_SIZE = .0006
 street_network_index = None
 
+# if way type is highway, don't count intersections!
+
+street_network_file = 'roads-for-cv-seattle.geojson'
+way_info_file = 'seattle-roads.dbf'
+way_street_id_file = 'osm-way-ids-seattle.csv'
+street_edge_name_file = 'street-edge-name-seattle.csv'
+
+# pre-processing (runs once)
+if not os.path.exists(helper.get_absolute_path(street_edge_name_file)):
+    helper.generate_street_edge_name_map(helper.get_absolute_path(street_edge_name_file))
+
 ######### Finding line closest to point helper functions ############
 # From: https://stackoverflow.com/questions/46170577/find-closest-line-to-each-point-on-big-dataset-possibly-using-shapely-and-rtree
 
-# MIN_SIZE should be a vaule such that if you build a box centered in each 
-# point with edges of size 2*MIN_SIZE, you know a priori that at least one 
-# segment is intersected with the box. Otherwise, you could get an inexact 
+# MIN_SIZE should be a vaule such that if you build a box centered in each
+# point with edges of size 2*MIN_SIZE, you know a priori that at least one
+# segment is intersected with the box. Otherwise, you could get an inexact
 # solution, there is an exception checking this, though.
-
-def distance(a, b):
-    return math.sqrt( (a[0]-b[0])**2 + (a[1]-b[1])**2 ) 
 
 def get_distance(apoint, segment):
     a = apoint
     b, c = segment
     # t = <a-b, c-b>/|c-b|**2
-    # because p(a) = t*(c-b)+b is the ortogonal projection of vector a 
-    # over the rectline that includes the points b and c. 
+    # because p(a) = t*(c-b)+b is the ortogonal projection of vector a
+    # over the rectline that includes the points b and c.
     t = (a[0]-b[0])*(c[0]-b[0]) + (a[1]-b[1])*(c[1]-b[1])
     t = t / ( (c[0]-b[0])**2 + (c[1]-b[1])**2 )
-    # Only if t 0 <= t <= 1 the projection is in the interior of 
-    # segment b-c, and it is the point that minimize the distance 
+    # Only if t 0 <= t <= 1 the projection is in the interior of
+    # segment b-c, and it is the point that minimize the distance
     # (by pitagoras theorem).
     if 0 < t < 1:
         pcoords = (t*(c[0]-b[0])+b[0], t*(c[1]-b[1])+b[1])
-        dmin = distance(a, pcoords)
+        dmin = helper.distance(a, pcoords)
         return pcoords, dmin
     elif t <= 0:
-        return b, distance(a, b)
+        return b, helper.distance(a, b)
     elif 1 <= t:
-        return c, distance(a, c)
+        return c, helper.distance(a, c)
+
 
 def get_rtree(lines):
     def generate_items():
@@ -54,20 +63,21 @@ def get_rtree(lines):
                 a, b = l[i]
                 c, d = l[i+1]
                 segment = ((a,b), (c,d))
-                box = (min(a, c), min(b,d), max(a, c), max(b,d)) 
+                box = (min(a, c), min(b,d), max(a, c), max(b,d))
                 #box = left, bottom, right, top
                 yield (sindx, box, (lid, segment))
                 sindx += 1
     return index.Index(generate_items())
 
+
 def get_closest_line_to_each_point(idx, points):
     result = {}
     for p in points:
         pbox = (p[0]-MIN_SIZE, p[1]-MIN_SIZE, p[0]+MIN_SIZE, p[1]+MIN_SIZE)
-        hits = idx.intersection(pbox, objects='raw')    
+        hits = idx.intersection(pbox, objects='raw')
         d = INFTY
         s = None
-        for h in hits: 
+        for h in hits:
             nearest_p, new_d = get_distance(p, h[1])
             if d >= new_d:
                 d = new_d
@@ -79,9 +89,9 @@ def get_closest_line_to_each_point(idx, points):
         if s == None:
             raise Exception("It seems INFTY is not big enough.")
 
-        pboxpol = ( (pbox[0], pbox[1]), (pbox[2], pbox[1]), 
+        pboxpol = ( (pbox[0], pbox[1]), (pbox[2], pbox[1]),
                     (pbox[2], pbox[3]), (pbox[0], pbox[3]) )
-        if not Polygon(pboxpol).intersects(LineString(s[1])):  
+        if not Polygon(pboxpol).intersects(LineString(s[1])):
             msg = "It seems MIN_SIZE is not big enough. "
             msg += "You could get inexact solutions if remove this exception."
             raise Exception(msg)
@@ -90,15 +100,6 @@ def get_closest_line_to_each_point(idx, points):
 
 ######### Other helper functions ############
 
-# Returns tuple mapping street edge id to a list of coordinate tuples
-# e.g. ('edge_id', [(5,6),(7,8)])
-def extract_street_coords_from_geojson(street):
-    edge_id = str(street['properties']['street_edge_id'])
-    coords_generator = geojson.utils.coords(street)
-    coords_list = []
-    for c in coords_generator:
-        coords_list.append(c)
-    return (edge_id, coords_list)
 
 # Cuts a line in two at a distance from its starting point
 # https://stackoverflow.com/questions/50332273/shapely-split-linestring-at-arbitrary-point-along-edge
@@ -120,9 +121,10 @@ def cut(line, distance):
 
 ######### End of helper functions ############
 
+
 def make_street_network_index():
     # Load the street network geojson file
-    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "input","full_dc.geojson")) as f:
+    with open(helper.get_absolute_path(street_network_file)) as f:
         streets_gj = geojson.load(f)
 
     # Read streets into a list of street edge id->coordinates mapping
@@ -135,6 +137,7 @@ def make_street_network_index():
     # Index the streets
     idx = get_rtree(edge_id_to_coords_list)
     return idx
+
 
 def compute_proximity(label_lat, label_lng):
     global street_network_index
@@ -191,7 +194,7 @@ def compute_proximity(label_lat, label_lng):
     left_segment_length = left_segment_transformed.length
 
     right_segment_transformed = transform(project, split_segments[1])
-    right_segment_length = right_segment_transformed.length 
+    right_segment_length = right_segment_transformed.length
 
     # The shorter segment represents the distance from label to end of street segment
     distance_to_segment_end = min(left_segment_length, right_segment_length)
@@ -200,5 +203,5 @@ def compute_proximity(label_lat, label_lng):
     # Print the line as geojson
     # print("For debugging, here is the line segment found closest to the label:")
     # print(geojson.LineString(line_coords))
-    return (distance_to_segment_end, middleness_pct)
+    return distance_to_segment_end, middleness_pct
 
