@@ -3,13 +3,15 @@ from dbfread import DBF
 import os
 import math
 import geojson
-from shapely.ops import linemerge
+from shapely.ops import linemerge, split
+from shapely.geometry import MultiLineString, LineString, Point
 from rtree import index
 import pickle
 import shapely
 
 multiplier = 1e7  # multiply all floats by this multiplier so we can compare them
 MIN_SIZE = .0006
+MAX_DIST = 0.000001  # maximum distance between intersection and street for a street to to be cut
 
 # pre-processing
 def generate_street_edge_name_map(way_info_file, way_street_id_file, street_edge_name_file):
@@ -91,10 +93,10 @@ def get_intersection_points(street_network_file, street_edge_name_file, intersec
     with open(intersection_points_file, 'wb') as f:
         pickle.dump(intersection_points, f)
 
-# get_intersection_points('input/roads-for-cv-seattle.geojson', 'input/street-edge-name-seattle.csv', 'input/intersection-points-seattle.txt')
+# get_intersection_points('input/roads-for-cv-seattle.geojson', 'input/street-edge-name-seattle.csv', 'input/intersection-points-seattle.pickle')
 
 
-def transform_geojson(street_network_file, intersection_points_file, street_edge_name_file, points_to_streets):
+def generate_real_segments(street_network_file, intersection_points_file, street_edge_name_file, real_segments_file):
     with open(street_network_file) as f:
         streets_gj = geojson.load(f)
 
@@ -112,8 +114,47 @@ def transform_geojson(street_network_file, intersection_points_file, street_edge
     name_to_edge = pd.read_csv(street_edge_name_file)
     street_linestrings = name_to_edge.groupby('street_name').apply(lambda x: linemerge([edge_id_to_coords_list[k] for k in x.street_edge_id.values]))
 
+    with open(intersection_points_file, 'rb') as f:
+        intersection_points = pickle.load(f)
 
-# transform_geojson('input/roads-for-cv-seattle.geojson', 'input/intersection-points-seattle.txt', 'input/street-edge-name-seattle.csv')
+    def cut_street(street, p):
+        if street.type == 'GeometryCollection':
+            street = MultiLineString(street)
+
+        if street.distance(p) < MAX_DIST:
+            # cut the segment and return it
+            # note: this only works because the point is a vertex on the LineString!
+            return split(street, p)
+
+        return street
+
+    for point, street_names in intersection_points.items():
+        for street_name in street_names:
+            # cut streets at each intersection point
+            street_linestrings.at[street_name] = cut_street(street_linestrings.loc[street_name],
+                                                            Point([point[0] / multiplier, point[1] / multiplier]))
+
+    # now generate a list of all the segments we found
+    real_segments = list()
+    for geometry_collection in street_linestrings.values:
+        if geometry_collection.type in ['GeometryCollection', 'MultiLineString']:
+            for linestring in geometry_collection:
+                real_segments.append(linestring)
+
+        elif geometry_collection.type == 'LineString':
+            real_segments.append(geometry_collection)
+
+        else:
+            raise Exception(f'Unexpected type found when generating real segments: {geometry_collection.type}')
+
+    # pickle the real segments (no need to create new edge id's because they would be irrelevant)
+    with open(real_segments_file, 'wb') as f:
+        pickle.dump(real_segments, f)
+
+
+# generate_real_segments('input/roads-for-cv-seattle.geojson', 'input/intersection-points-seattle.pickle',
+#                        'input/street-edge-name-seattle.csv', 'input/real-segments-seattle.pickle')
+
 
 def get_absolute_path(input_file):
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), "input", input_file)
