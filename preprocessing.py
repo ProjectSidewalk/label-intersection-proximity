@@ -6,17 +6,17 @@ from shapely.ops import linemerge, split
 from shapely.geometry import MultiLineString, LineString, Point
 import pickle
 
-multiplier = 1e7  # multiply all floats by this multiplier so we can compare them
+multiplier = 1e8  # multiply all floats by this multiplier so we can compare them
 MIN_SIZE = .0006
 MAX_DIST = 0.000001  # maximum distance between intersection and street for a street to to be cut
 
 
-def generate_street_edge_name_map(way_info_file, way_street_id_file, street_edge_name_file):
-    osm_data = pd.DataFrame(DBF(way_info_file).records)
+def generate_street_edge_name_map(road_network_dump, osm_way_ids, street_edge_name_file):
+    osm_data = pd.DataFrame(DBF(road_network_dump).records)
     osm_data.set_index('osm_id', inplace=True)
     street_name = osm_data['name']
 
-    street_id = pd.read_csv(way_street_id_file)
+    street_id = pd.read_csv(osm_way_ids)
     street_id.set_index('street_edge_id', inplace=True)
 
     street_id_name = street_id.apply(lambda x: street_name.loc[x['osm_way_id']], axis=1)
@@ -37,7 +37,7 @@ def extract_street_coords_from_geojson(street):
     return edge_id, coords_list
 
 
-def get_intersection_points(street_network_file, street_edge_name_file, intersection_points_file):
+def generate_intersection_points(street_network_file, street_edge_name_file, intersection_points_file):
     with open(street_network_file) as f:
         streets_gj = geojson.load(f)
 
@@ -181,3 +181,38 @@ def make_street_network_index(real_segments_file):
     idx = get_rtree(id_to_segment)
     return idx
 
+
+def run_preprocess(city_settings):
+    generate_street_edge_name_map(city_settings['road_network_dump'], city_settings['osm_way_ids'],
+                                  city_settings['street_edge_name_filename'])
+
+    generate_intersection_points(city_settings['street_network_filename'], city_settings['street_edge_name_filename'],
+                                 city_settings['intersection_points_filename'])
+
+    generate_real_segments(city_settings['street_network_filename'], city_settings['intersection_points_filename'],
+                           city_settings['street_edge_name_filename'], city_settings['real_segments_output_filename'])
+
+
+if __name__ == '__main__':
+
+    import os
+    settings = {
+        'seattle': {
+            # inputs
+            'street_network_filename': 'roads-for-cv-seattle.geojson',
+            'osm_way_ids': 'osm-way-ids-seattle.csv',
+            'road_network_dump': 'seattle-roads.dbf',
+
+            # outputs
+            'intersection_points_filename': 'intersection-points-seattle.pickle',
+            'street_edge_name_filename': 'street-edge-name-seattle.csv',
+            'real_segments_output_filename': 'real-segments-seattle.pickle'
+        }
+    }
+
+    # convert to absolute paths
+    for city in settings:
+        for key in settings[city]:
+            settings[city][key] = os.path.join(os.path.dirname(os.path.abspath(__file__)), "input", settings[city][key])
+
+    run_preprocess(settings['seattle'])

@@ -5,6 +5,7 @@ import ast
 from shapely.ops import transform
 from functools import partial
 import pyproj
+import os
 from preprocessing import make_street_network_index
 
 INFTY = 1000000
@@ -14,16 +15,22 @@ street_network_index = None
 settings = {
     'seattle': {
         # inputs
-        'street_network_filename': 'input/roads-for-cv-seattle.geojson',
-        'osm_way_ids': 'input/osm-way-ids-seattle.csv',
-        'road_network_dump': 'input/seattle-roads.dbf',
+        'street_network_filename': 'roads-for-cv-seattle.geojson',
+        'osm_way_ids': 'osm-way-ids-seattle.csv',
+        'road_network_dump': 'seattle-roads.dbf',
 
         # outputs
-        'intersection_points_filename': 'input/intersection-points-seattle.pickle',
-        'street_edge_name_filename': 'input/street-edge-name-seattle.csv',
-        'real_segments_output_filename': 'input/real-segments-seattle.pickle'
+        'intersection_points_filename': 'intersection-points-seattle.pickle',
+        'street_edge_name_filename': 'street-edge-name-seattle.csv',
+        'real_segments_output_filename': 'real-segments-seattle.pickle'
     }
 }
+
+# convert to absolute paths
+for city in settings:
+    for key in settings[city]:
+        settings[city][key] = os.path.join(os.path.dirname(os.path.abspath(__file__)), "input", settings[city][key])
+
 
 ######### Finding line closest to point helper functions ############
 # From: https://stackoverflow.com/questions/46170577/find-closest-line-to-each-point-on-big-dataset-possibly-using-shapely-and-rtree
@@ -122,6 +129,11 @@ def cut(line, distance):
 
 
 def compute_proximity(label_lat, label_lng):
+
+    import math
+    if math.isclose(label_lat, 47.59494019) and math.isclose(label_lng, -122.3248825):
+        x = 0
+
     global street_network_index
     # Index the street network if not done yet
     if street_network_index is None:
@@ -184,7 +196,7 @@ def compute_proximity(label_lat, label_lng):
 
     # Print the line as geojson
     # print("For debugging, here is the line segment found closest to the label:")
-    # print(geojson.LineString(line_coords))
+    print(geojson.LineString(line_coords))
     return distance_to_segment_end, middleness_pct
 
 
