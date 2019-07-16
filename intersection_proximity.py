@@ -129,15 +129,11 @@ def cut(line, distance):
 
 
 def compute_proximity(label_lat, label_lng):
-
-    import math
-    if math.isclose(label_lat, 47.59494019) and math.isclose(label_lng, -122.3248825):
-        x = 0
-
     global street_network_index
+    global real_segments
     # Index the street network if not done yet
     if street_network_index is None:
-        street_network_index = make_street_network_index(settings['seattle']['real_segments_output_filename'])
+        street_network_index, real_segments = make_street_network_index(settings['seattle']['real_segments_output_filename'])
 
     # Points to compute results for, in (lng, lat) form
     # Right now only the first point in this list is processed
@@ -158,7 +154,8 @@ def compute_proximity(label_lat, label_lng):
         line_coords_as_list.append(list(coord))
 
     # Turn the line coords into a shapley line
-    shapely_line = LineString(ast.literal_eval(str(line_coords_as_list)))
+    # shapely_line = LineString(ast.literal_eval(str(line_coords_as_list)))
+    shapely_line = real_segments[closest_line_for_each_point[points[0]][0]]
 
     line_length = shapely_line.length
     line_start_to_closest_pt_len = shapely_line.project(closest_point_on_line)
@@ -196,7 +193,7 @@ def compute_proximity(label_lat, label_lng):
 
     # Print the line as geojson
     # print("For debugging, here is the line segment found closest to the label:")
-    print(geojson.LineString(line_coords))
+    print(shapely_line)
     return distance_to_segment_end, middleness_pct
 
 

@@ -179,7 +179,7 @@ def make_street_network_index(real_segments_file):
 
     # Index the streets
     idx = get_rtree(id_to_segment)
-    return idx
+    return idx, real_segments
 
 
 def run_preprocess(city_settings):
