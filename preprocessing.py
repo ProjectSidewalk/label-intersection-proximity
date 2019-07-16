@@ -1,19 +1,16 @@
 import pandas as pd
 from dbfread import DBF
-import os
-import math
+from rtree import index
 import geojson
 from shapely.ops import linemerge, split
 from shapely.geometry import MultiLineString, LineString, Point
-from rtree import index
 import pickle
-import shapely
 
 multiplier = 1e7  # multiply all floats by this multiplier so we can compare them
 MIN_SIZE = .0006
 MAX_DIST = 0.000001  # maximum distance between intersection and street for a street to to be cut
 
-# pre-processing
+
 def generate_street_edge_name_map(way_info_file, way_street_id_file, street_edge_name_file):
     osm_data = pd.DataFrame(DBF(way_info_file).records)
     osm_data.set_index('osm_id', inplace=True)
@@ -155,11 +152,32 @@ def generate_real_segments(street_network_file, intersection_points_file, street
 # generate_real_segments('input/roads-for-cv-seattle.geojson', 'input/intersection-points-seattle.pickle',
 #                        'input/street-edge-name-seattle.csv', 'input/real-segments-seattle.pickle')
 
+def get_rtree(lines):
+    def generate_items():
+        sindx = 0
+        for lid, l in lines:
+            for i in range(len(l)-1):
+                a, b = l[i]
+                c, d = l[i+1]
+                segment = ((a,b), (c,d))
+                box = (min(a, c), min(b,d), max(a, c), max(b,d))
+                #box = left, bottom, right, top
+                yield (sindx, box, (lid, segment))
+                sindx += 1
+    return index.Index(generate_items())
 
-def get_absolute_path(input_file):
-    return os.path.join(os.path.dirname(os.path.abspath(__file__)), "input", input_file)
 
+def make_street_network_index(real_segments_file):
+    # Load the pickled segments file
+    with open(real_segments_file, 'rb') as f:
+        real_segments = pickle.load(f)
 
-def distance(a, b):
-    return math.sqrt((a[0]-b[0])**2 + (a[1]-b[1])**2)
+    # Read segments into a list of id->coordinates mapping
+    id_to_segment = []
+    for i in range(len(real_segments)):
+        id_to_segment.append((i, list(real_segments[i].coords)))
+
+    # Index the streets
+    idx = get_rtree(id_to_segment)
+    return idx
 

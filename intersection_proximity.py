@@ -1,30 +1,29 @@
 import math
-from rtree import index
 from shapely.geometry import Polygon, LineString, Point
 import geojson
-import json
-import os
 import ast
 from shapely.ops import transform
 from functools import partial
 import pyproj
-import sys
-import helper
+from preprocessing import make_street_network_index
 
 INFTY = 1000000
 MIN_SIZE = .0006
 street_network_index = None
 
-# if way type is highway, don't count intersections!
+settings = {
+    'seattle': {
+        # inputs
+        'street_network_filename': 'input/roads-for-cv-seattle.geojson',
+        'osm_way_ids': 'input/osm-way-ids-seattle.csv',
+        'road_network_dump': 'input/seattle-roads.dbf',
 
-street_network_file = 'roads-for-cv-seattle.geojson'
-way_info_file = 'seattle-roads.dbf'
-way_street_id_file = 'osm-way-ids-seattle.csv'
-street_edge_name_file = 'street-edge-name-seattle.csv'
-
-# pre-processing (runs once)
-if not os.path.exists(helper.get_absolute_path(street_edge_name_file)):
-    helper.generate_street_edge_name_map(helper.get_absolute_path(street_edge_name_file))
+        # outputs
+        'intersection_points_filename': 'input/intersection-points-seattle.pickle',
+        'street_edge_name_filename': 'input/street-edge-name-seattle.csv',
+        'real_segments_output_filename': 'input/real-segments-seattle.pickle'
+    }
+}
 
 ######### Finding line closest to point helper functions ############
 # From: https://stackoverflow.com/questions/46170577/find-closest-line-to-each-point-on-big-dataset-possibly-using-shapely-and-rtree
@@ -33,6 +32,11 @@ if not os.path.exists(helper.get_absolute_path(street_edge_name_file)):
 # point with edges of size 2*MIN_SIZE, you know a priori that at least one
 # segment is intersected with the box. Otherwise, you could get an inexact
 # solution, there is an exception checking this, though.
+
+
+def distance(a, b):
+    return math.sqrt( (a[0]-b[0])**2 + (a[1]-b[1])**2 )
+
 
 def get_distance(apoint, segment):
     a = apoint
@@ -47,27 +51,12 @@ def get_distance(apoint, segment):
     # (by pitagoras theorem).
     if 0 < t < 1:
         pcoords = (t*(c[0]-b[0])+b[0], t*(c[1]-b[1])+b[1])
-        dmin = helper.distance(a, pcoords)
+        dmin = distance(a, pcoords)
         return pcoords, dmin
     elif t <= 0:
-        return b, helper.distance(a, b)
+        return b, distance(a, b)
     elif 1 <= t:
-        return c, helper.distance(a, c)
-
-
-def get_rtree(lines):
-    def generate_items():
-        sindx = 0
-        for lid, l in lines:
-            for i in range(len(l)-1):
-                a, b = l[i]
-                c, d = l[i+1]
-                segment = ((a,b), (c,d))
-                box = (min(a, c), min(b,d), max(a, c), max(b,d))
-                #box = left, bottom, right, top
-                yield (sindx, box, (lid, segment))
-                sindx += 1
-    return index.Index(generate_items())
+        return c, distance(a, c)
 
 
 def get_closest_line_to_each_point(idx, points):
@@ -100,6 +89,15 @@ def get_closest_line_to_each_point(idx, points):
 
 ######### Other helper functions ############
 
+# Returns tuple mapping street edge id to a list of coordinate tuples
+# e.g. ('edge_id', [(5,6),(7,8)])
+def extract_street_coords_from_geojson(street):
+    edge_id = str(street['properties']['street_edge_id'])
+    coords_generator = geojson.utils.coords(street)
+    coords_list = []
+    for c in coords_generator:
+        coords_list.append(c)
+    return (edge_id, coords_list)
 
 # Cuts a line in two at a distance from its starting point
 # https://stackoverflow.com/questions/50332273/shapely-split-linestring-at-arbitrary-point-along-edge
@@ -119,31 +117,15 @@ def cut(line, distance):
                 LineString(coords[:i] + [(cp.x, cp.y)]),
                 LineString([(cp.x, cp.y)] + coords[i:])]
 
-######### End of helper functions ############
-
-
-def make_street_network_index():
-    # Load the street network geojson file
-    with open(helper.get_absolute_path(street_network_file)) as f:
-        streets_gj = geojson.load(f)
-
-    # Read streets into a list of street edge id->coordinates mapping
-    streets_list = streets_gj['features']
-    edge_id_to_coords_list = []
-    for street in streets_list:
-        edge_id_to_coords = extract_street_coords_from_geojson(street)
-        edge_id_to_coords_list.append(edge_id_to_coords)
-
-    # Index the streets
-    idx = get_rtree(edge_id_to_coords_list)
-    return idx
+# End of helper functions
+# --------------------------------------------
 
 
 def compute_proximity(label_lat, label_lng):
     global street_network_index
     # Index the street network if not done yet
     if street_network_index is None:
-        street_network_index = make_street_network_index()
+        street_network_index = make_street_network_index(settings['seattle']['real_segments_output_filename'])
 
     # Points to compute results for, in (lng, lat) form
     # Right now only the first point in this list is processed
@@ -205,3 +187,6 @@ def compute_proximity(label_lat, label_lng):
     # print(geojson.LineString(line_coords))
     return distance_to_segment_end, middleness_pct
 
+
+if __name__ == '__main__':
+    print(compute_proximity(47.5775947570801, -122.305442810059))
