@@ -2,13 +2,13 @@ import pandas as pd
 from dbfread import DBF
 from rtree import index
 import geojson
-from shapely.ops import linemerge, split
-from shapely.geometry import MultiLineString, LineString, Point
+from shapely.ops import linemerge, split, nearest_points
+from shapely.geometry import MultiLineString, LineString, Point, MultiPoint
 import pickle
 
-multiplier = 1e8  # multiply all floats by this multiplier so we can compare them
+multiplier = 1e5 # multiply all floats by this multiplier so we can compare them
 MIN_SIZE = .0006
-MAX_DIST = 0.000001  # maximum distance between intersection and street for a street to to be cut
+MAX_DIST = 1/multiplier  # maximum distance between intersection and street for a street to to be cut
 
 
 def generate_street_edge_name_map(road_network_dump, osm_way_ids, street_edge_name_file):
@@ -120,8 +120,22 @@ def generate_real_segments(street_network_file, intersection_points_file, street
 
         if street.distance(p) < MAX_DIST:
             # cut the segment and return it
-            # note: this only works because the point is a vertex on the LineString!
-            return split(street, p)
+            # note: this only works because the point is pretty close to a vertex on the LineString!
+            # TODO change to use shapely.ops.snap with tolerance MAX_DIST
+
+            if street.type == 'LineString':
+                mp = MultiPoint(list(street.coords))
+            else:
+                assert street.type == 'MultiLineString'
+                points = []
+                for line_string in street.geoms:
+                    points += line_string.coords
+
+                mp = MultiPoint(points)
+
+            split_vertex = nearest_points(mp, p)[0]
+
+            return split(street, split_vertex)
 
         return street
 
