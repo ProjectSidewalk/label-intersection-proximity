@@ -2,6 +2,7 @@ import pandas as pd
 from dbfread import DBF
 from rtree import index
 import geojson
+from math import isclose
 from shapely.ops import linemerge, split, nearest_points
 from shapely.geometry import MultiLineString, LineString, Point, MultiPoint
 import pickle
@@ -58,12 +59,26 @@ def generate_intersection_points(street_network_file, street_edge_name_file, int
     edge_to_name.set_index('street_edge_id', inplace=True)
 
     for edge_id, coords_list in edge_id_to_coords_list.items():
+        # if edge_id == 21648:
+        #     x = 0
         try:
             street_name = edge_to_name.loc[edge_id].street_name
         except KeyError:
             continue
 
         for float_point in coords_list:
+            # if street_name == 'Republican Street':
+            #     print('%.6f, %.6f' % (float_point[1], float_point[0]))
+            #     # isclose(-122.3567162, float_point[0], abs_tol=0.001) and \
+            #     #     isclose(47.6232727, float_point[1], abs_tol=0.001):
+            #     # x=0
+
+            if isclose(-122.3567162, float_point[0], abs_tol=0.001) and \
+                    isclose(47.6232727, float_point[1], abs_tol=0.001):
+                print('%.6f, %.6f' % (float_point[1], float_point[0]))
+
+                # x=0
+
             point_lng, point_lat = int(float_point[0] * multiplier), int(float_point[1] * multiplier)
 
             # print(float_point)
@@ -71,7 +86,11 @@ def generate_intersection_points(street_network_file, street_edge_name_file, int
                 points_to_streets[point_lng, point_lat] = set()
 
             if type(street_name) == str:
+                # Add a street to the intersection
                 points_to_streets[point_lng, point_lat].add(street_name)
+            elif pd.isna(street_name):
+                # Unnamed street, just represent it as an empty string
+                points_to_streets[point_lng, point_lat].add('')
 
     # print ((-122327192, 47628370) in intersection_points)
     # import random
@@ -109,6 +128,9 @@ def generate_real_segments(street_network_file, intersection_points_file, street
 
     # now group streets with the same name together
     name_to_edge = pd.read_csv(street_edge_name_file)
+
+    # unnamed streets are currently nans, so make them empty strings so they appear in the groupby
+    name_to_edge.fillna('', inplace=True)
     street_linestrings = name_to_edge.groupby('street_name').apply(lambda x: linemerge([edge_id_to_coords_list[k] for k in x.street_edge_id.values]))
 
     with open(intersection_points_file, 'rb') as f:

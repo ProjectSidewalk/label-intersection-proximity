@@ -193,7 +193,8 @@ def compute_proximity(label_lat, label_lng):
 
     # Print the line as geojson
     # print("For debugging, here is the line segment found closest to the label:")
-    print(shapely_line)
+    # print(shapely_line)
+    print([', '.join([('%.6f' % k) for k in reversed(a)]) for a in list(shapely_line.coords)])
     return distance_to_segment_end, middleness_pct
 
 

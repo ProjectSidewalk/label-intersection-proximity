@@ -13,14 +13,23 @@ def test(row):
     min_dist = min(near_dist, far_dist)
 
     print('-------------------------------')
-    print(row.lat, row.lng)
+    print('id:', row.label_id)
+    print('%.6f, %.6f' % (row.lat, row.lng))
     a, b = predictor(row.lat, row.lng)
     print('predicted', a, b)
     print('actual', min_dist, middleness)
 
+    absolute_ = math.fabs(min_dist - a) < 5
+    middleness_ = math.fabs(middleness - b) < 10
+
+    if not absolute_:
+        print('*** ABSOLUTE ***')
+    elif not middleness_:
+        print('*** MIDDLENESS ***')
+
     return pd.Series({
-        'absolute': math.fabs(min_dist - a) < 5,
-        'middleness': math.fabs(middleness - b) < 10
+        'absolute': absolute_,
+        'middleness': middleness_
     })
 
 
