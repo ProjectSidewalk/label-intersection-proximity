@@ -1,39 +1,15 @@
 import math
 from shapely.geometry import Polygon, LineString, Point
 import geojson
-import ast
 from shapely.ops import transform
 from functools import partial
 import pyproj
-import os
 from preprocessing import make_street_network_index
+from settings import *
 
-INFTY = 1000000
-MIN_SIZE = .0006
-street_network_index = None
-
-settings = {
-    'seattle': {
-        # inputs
-        'street_network_filename': 'roads-for-cv-seattle.geojson',
-        'osm_way_ids': 'osm-way-ids-seattle.csv',
-        'road_network_dump': 'seattle-roads.dbf',
-
-        # outputs
-        'intersection_points_filename': 'intersection-points-seattle.pickle',
-        'street_edge_name_filename': 'street-edge-name-seattle.csv',
-        'real_segments_output_filename': 'real-segments-seattle.pickle'
-    }
-}
-
-# convert to absolute paths
-for city in settings:
-    for key in settings[city]:
-        settings[city][key] = os.path.join(os.path.dirname(os.path.abspath(__file__)), "input", settings[city][key])
-
-
-######### Finding line closest to point helper functions ############
-# From: https://stackoverflow.com/questions/46170577/find-closest-line-to-each-point-on-big-dataset-possibly-using-shapely-and-rtree
+# Finding line closest to point helper functions
+# From: https://stackoverflow.com/questions/46170577/
+# find-closest-line-to-each-point-on-big-dataset-possibly-using-shapely-and-rtree
 
 # MIN_SIZE should be a vaule such that if you build a box centered in each
 # point with edges of size 2*MIN_SIZE, you know a priori that at least one
@@ -42,7 +18,7 @@ for city in settings:
 
 
 def distance(a, b):
-    return math.sqrt( (a[0]-b[0])**2 + (a[1]-b[1])**2 )
+    return math.sqrt((a[0]-b[0])**2 + (a[1]-b[1])**2)
 
 
 def get_distance(apoint, segment):
@@ -67,6 +43,12 @@ def get_distance(apoint, segment):
 
 
 def get_closest_line_to_each_point(idx, points):
+    """
+    Get a street segment closest to each point in a list
+    :param idx: street network index
+    :param points: List of points
+    :return: list of closest segments
+    """
     result = {}
     for p in points:
         pbox = (p[0]-MIN_SIZE, p[1]-MIN_SIZE, p[0]+MIN_SIZE, p[1]+MIN_SIZE)
@@ -79,9 +61,9 @@ def get_closest_line_to_each_point(idx, points):
                 d = new_d
                 s = (h[0], h[1], nearest_p, new_d)
         result[p] = s
-        #print(s)
+        # print(s)
 
-        #some checking you could remove after you adjust the constants
+        # some checking you could remove after you adjust the constants
         if s == None:
             raise Exception("It seems INFTY is not big enough.")
 
@@ -96,19 +78,29 @@ def get_closest_line_to_each_point(idx, points):
 
 ######### Other helper functions ############
 
-# Returns tuple mapping street edge id to a list of coordinate tuples
-# e.g. ('edge_id', [(5,6),(7,8)])
+
 def extract_street_coords_from_geojson(street):
+    """
+    Returns tuple mapping street edge id to a list of coordinate tuples
+    :param street:
+    :return: Ex. ('edge_id', [(5,6),(7,8)])
+    """
     edge_id = str(street['properties']['street_edge_id'])
     coords_generator = geojson.utils.coords(street)
     coords_list = []
     for c in coords_generator:
         coords_list.append(c)
-    return (edge_id, coords_list)
+    return edge_id, coords_list
 
-# Cuts a line in two at a distance from its starting point
-# https://stackoverflow.com/questions/50332273/shapely-split-linestring-at-arbitrary-point-along-edge
+
 def cut(line, distance):
+    """
+    Cuts a line in two at a distance from its starting point
+    https://stackoverflow.com/questions/50332273/shapely-split-linestring-at-arbitrary-point-along-edge
+    :param line:
+    :param distance:
+    :return:
+    """
     if distance <= 0.0 or distance >= line.length:
         return [LineString(line)]
     coords = list(line.coords)
@@ -128,7 +120,13 @@ def cut(line, distance):
 # --------------------------------------------
 
 
-def compute_proximity(label_lat, label_lng):
+def compute_proximity(label_lat, label_lng, debug=False):
+    """
+    Compute the intersection proximity, given the latitude and longitude of a label.
+    :param label_lat:
+    :param label_lng:
+    :return: A tuple (distance to intersection, middleness percent)
+    """
     global street_network_index
     global real_segments
     # Index the street network if not done yet
@@ -192,9 +190,11 @@ def compute_proximity(label_lat, label_lng):
     # print("Distance to end of segment: {} meters".format(distance_to_segment_end))
 
     # Print the line as geojson
-    # print("For debugging, here is the line segment found closest to the label:")
-    # print(shapely_line)
-    print([', '.join([('%.6f' % k) for k in reversed(a)]) for a in list(shapely_line.coords)])
+    if debug:
+        print("For debugging, here is the line segment found closest to the label:")
+        # print(shapely_line)
+        print([', '.join([('%.6f' % k) for k in reversed(a)]) for a in list(shapely_line.coords)])
+
     return distance_to_segment_end, middleness_pct
 
 

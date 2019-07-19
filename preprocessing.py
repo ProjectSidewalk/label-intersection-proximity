@@ -6,6 +6,8 @@ from math import isclose
 from shapely.ops import linemerge, split, nearest_points
 from shapely.geometry import MultiLineString, LineString, Point, MultiPoint
 import pickle
+import sys
+from settings import *
 
 multiplier = 1e5 # multiply all floats by this multiplier so we can compare them
 MIN_SIZE = .0006
@@ -25,11 +27,11 @@ def generate_street_edge_name_map(road_network_dump, osm_way_ids, street_edge_na
 
 
 def extract_street_coords_from_geojson(street):
-    '''
+    """
     Returns tuple mapping street edge id to a list of coordinate tuples
     :param street:
     :return:
-    '''
+    """
     edge_id = street['properties']['street_edge_id']
     coords_generator = geojson.utils.coords(street)
     coords_list = []
@@ -67,18 +69,6 @@ def generate_intersection_points(street_network_file, street_edge_name_file, int
             continue
 
         for float_point in coords_list:
-            # if street_name == 'Republican Street':
-            #     print('%.6f, %.6f' % (float_point[1], float_point[0]))
-            #     # isclose(-122.3567162, float_point[0], abs_tol=0.001) and \
-            #     #     isclose(47.6232727, float_point[1], abs_tol=0.001):
-            #     # x=0
-
-            if isclose(-122.3567162, float_point[0], abs_tol=0.001) and \
-                    isclose(47.6232727, float_point[1], abs_tol=0.001):
-                print('%.6f, %.6f' % (float_point[1], float_point[0]))
-
-                # x=0
-
             point_lng, point_lat = int(float_point[0] * multiplier), int(float_point[1] * multiplier)
 
             # print(float_point)
@@ -109,9 +99,6 @@ def generate_intersection_points(street_network_file, street_edge_name_file, int
     with open(intersection_points_file, 'wb') as f:
         pickle.dump(intersection_points, f)
 
-# get_intersection_points('input/roads-for-cv-seattle.geojson', 'input/street-edge-name-seattle.csv', 'input/intersection-points-seattle.pickle')
-
-
 def generate_real_segments(street_network_file, intersection_points_file, street_edge_name_file, real_segments_file):
     with open(street_network_file) as f:
         streets_gj = geojson.load(f)
@@ -131,7 +118,9 @@ def generate_real_segments(street_network_file, intersection_points_file, street
 
     # unnamed streets are currently nans, so make them empty strings so they appear in the groupby
     name_to_edge.fillna('', inplace=True)
-    street_linestrings = name_to_edge.groupby('street_name').apply(lambda x: linemerge([edge_id_to_coords_list[k] for k in x.street_edge_id.values]))
+    street_linestrings = name_to_edge.groupby('street_name').apply(
+        lambda x: linemerge([edge_id_to_coords_list[k] for k in x.street_edge_id.values])
+    )
 
     with open(intersection_points_file, 'rb') as f:
         intersection_points = pickle.load(f)
@@ -185,9 +174,6 @@ def generate_real_segments(street_network_file, intersection_points_file, street
         pickle.dump(real_segments, f)
 
 
-# generate_real_segments('input/roads-for-cv-seattle.geojson', 'input/intersection-points-seattle.pickle',
-#                        'input/street-edge-name-seattle.csv', 'input/real-segments-seattle.pickle')
-
 def get_rtree(lines):
     def generate_items():
         sindx = 0
@@ -204,6 +190,11 @@ def get_rtree(lines):
 
 
 def make_street_network_index(real_segments_file):
+    '''
+    Make a street network index from a file with pickled real segments.
+    :param real_segments_file: filename of real segments file
+    :return:
+    '''
     # Load the pickled segments file
     with open(real_segments_file, 'rb') as f:
         real_segments = pickle.load(f)
@@ -219,21 +210,10 @@ def make_street_network_index(real_segments_file):
 
 
 def run_preprocess(city_settings):
-    generate_street_edge_name_map(city_settings['road_network_dump'], city_settings['osm_way_ids'],
-                                  city_settings['street_edge_name_filename'])
-
-    generate_intersection_points(city_settings['street_network_filename'], city_settings['street_edge_name_filename'],
-                                 city_settings['intersection_points_filename'])
-
-    generate_real_segments(city_settings['street_network_filename'], city_settings['intersection_points_filename'],
-                           city_settings['street_edge_name_filename'], city_settings['real_segments_output_filename'])
-
-
-if __name__ == '__main__':
-
-    import os
-    settings = {
-        'seattle': {
+    """
+    Preprocessing function. This is run once and overwrites other generated files.
+    :param city_settings: a dict of settings. Ex.:
+        {
             # inputs
             'street_network_filename': 'roads-for-cv-seattle.geojson',
             'osm_way_ids': 'osm-way-ids-seattle.csv',
@@ -244,11 +224,33 @@ if __name__ == '__main__':
             'street_edge_name_filename': 'street-edge-name-seattle.csv',
             'real_segments_output_filename': 'real-segments-seattle.pickle'
         }
-    }
+    :return: None
+    """
+    print('Building street name->edge name map... ', end='', flush=True)
+    generate_street_edge_name_map(city_settings['road_network_dump'], city_settings['osm_way_ids'],
+                                  city_settings['street_edge_name_filename'])
+    print('Done!')
 
-    # convert to absolute paths
-    for city in settings:
-        for key in settings[city]:
-            settings[city][key] = os.path.join(os.path.dirname(os.path.abspath(__file__)), "input", settings[city][key])
+    print('Finding street intersections... ', end='', flush=True)
+    generate_intersection_points(city_settings['street_network_filename'], city_settings['street_edge_name_filename'],
+                                 city_settings['intersection_points_filename'])
+    print('Done!')
 
-    run_preprocess(settings['seattle'])
+    print('Generating street segments... ', end='', flush=True)
+    generate_real_segments(city_settings['street_network_filename'], city_settings['intersection_points_filename'],
+                           city_settings['street_edge_name_filename'], city_settings['real_segments_output_filename'])
+    print('Done!')
+
+
+if __name__ == '__main__':
+    if len(sys.argv) == 1:
+        raise Exception('Please specify at least one city to pre-process.')
+
+    for i in range(1, len(sys.argv)):
+        if not sys.argv[i] in settings:
+            raise Exception('City %s not found in settings.py. ' % sys.argv[i])
+
+    for i in range(1, len(sys.argv)):
+        print('Running pre-processing for city: %s' % sys.argv[i])
+        run_preprocess(settings[sys.argv[i]])
+        print('Finished processing %s!' % sys.argv[i])

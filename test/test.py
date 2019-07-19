@@ -2,10 +2,19 @@ import pandas as pd
 import math
 from intersection_proximity import compute_proximity
 
+# Set predictor to be whatever predictor function we're using.
+# By default it is the one imported from this project
+
 predictor = compute_proximity
 
 
 def test(row):
+    """
+    test a single row(series) extracted from the ground truth csv
+    :param row:
+    :return: A series containing two booleans, each representing whether the computed
+    absolute or middleness is satisfactory
+    """
     near_dist = row.near_dist
     far_dist = row.far_dist
 
