@@ -7,7 +7,7 @@ from shapely.ops import linemerge, split, nearest_points
 from shapely.geometry import MultiLineString, LineString, Point, MultiPoint
 import pickle
 import sys
-from settings import *
+from .settings import *
 
 multiplier = 1e5 # multiply all floats by this multiplier so we can compare them
 MIN_SIZE = .0006

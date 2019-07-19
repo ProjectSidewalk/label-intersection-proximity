@@ -4,8 +4,8 @@ import geojson
 from shapely.ops import transform
 from functools import partial
 import pyproj
-from preprocessing import make_street_network_index
-from settings import *
+from .preprocessing import make_street_network_index
+from .settings import *
 
 # Finding line closest to point helper functions
 # From: https://stackoverflow.com/questions/46170577/
