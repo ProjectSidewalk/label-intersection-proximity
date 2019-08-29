@@ -143,7 +143,7 @@ class IntersectionProximity:
         if self.cache:
             self.proximity_cache = dict()
 
-        settings_hash = hash(json.dumps(self.input_files, sort_keys=True))
+        settings_hash = str(hash(json.dumps(self.input_files, sort_keys=True)))
         intermediates_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "intermediates", settings_hash)
      
         self.intermediate_files = {
@@ -163,6 +163,7 @@ class IntersectionProximity:
             shutil.rmtree(intermediates_path)
         
         if not os.path.exists(intermediates_path):
+            os.mkdir(intermediates_path)
             run_preprocess(self.settings)
 
         self.street_network_index, self.real_segments = make_street_network_index(self.settings['real_segments_output_filename'])

@@ -1,11 +1,11 @@
 import pandas as pd
 import math
-from intersection_proximity import compute_proximity
-
+import intersection_proximity
 # Set predictor to be whatever predictor function we're using.
 # By default it is the one imported from this project
 
-predictor = compute_proximity
+ip = intersection_proximity.IntersectionProximity(intersection_proximity.default_settings['seattle'])
+predictor = ip.compute_proximity
 
 
 def test(row):

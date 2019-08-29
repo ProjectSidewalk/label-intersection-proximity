@@ -1,12 +1,11 @@
 import os
 
 # All settings for the project are stored here.
-
 INFTY = 1000000
 MIN_SIZE = .0006
 street_network_index = None
 
-settings = {
+default_settings = {
     'seattle': {
         # inputs
         'street_network_filename': 'roads-for-cv-seattle.geojson',
@@ -21,6 +20,6 @@ settings = {
 }
 
 # convert to absolute paths
-for city in settings:
-    for key in settings[city]:
-        settings[city][key] = os.path.join(os.path.dirname(os.path.abspath(__file__)), "input", settings[city][key])
+for city in default_settings:
+    for key in default_settings[city]:
+        default_settings[city][key] = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "default_input", default_settings[city][key])
