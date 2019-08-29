@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="intersection-proximity-nchowder",
-    version="0.0.3",
+    version="0.0.9",
     author="Neil Chowdhury",
     author_email="neil.chowdhury@outlook.com",
     description="Compute the proximity from any point to a street intersection",
@@ -30,4 +30,5 @@ setuptools.setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
+    include_package_data=True
 )

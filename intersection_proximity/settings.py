@@ -22,4 +22,4 @@ default_settings = {
 # convert to absolute paths
 for city in default_settings:
     for key in default_settings[city]:
-        default_settings[city][key] = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "default_input", default_settings[city][key])
+        default_settings[city][key] = os.path.join(os.path.dirname(os.path.abspath(__file__)), "default_input", default_settings[city][key])

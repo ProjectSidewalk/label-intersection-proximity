@@ -5,5 +5,5 @@ __pycache__
 intersection_proximity/intermediates/*
 build/
 dist/
-intersection_proximity.egg-info/
-intersection_proximity_nchowder.egg-info/
+*.egg-info/
+intersection-proximity-nchowder*/
