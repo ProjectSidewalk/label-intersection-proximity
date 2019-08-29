@@ -9,6 +9,7 @@ from .settings import *
 import json
 import os
 import shutil
+import hashlib
 
 # Finding line closest to point helper functions
 # From: https://stackoverflow.com/questions/46170577/
@@ -143,7 +144,7 @@ class IntersectionProximity:
         if self.cache:
             self.proximity_cache = dict()
 
-        settings_hash = str(hash(json.dumps(self.input_files, sort_keys=True)))
+        settings_hash = str(hashlib.sha256(json.dumps(self.input_files, sort_keys=True).encode()).hexdigest())
         intermediates_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "intermediates", settings_hash)
      
         self.intermediate_files = {
