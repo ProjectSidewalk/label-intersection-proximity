@@ -2,4 +2,8 @@ venv
 .vscode
 __pycache__
 *.pyc
-intersection_proximity/intermediates/
+intersection_proximity/intermediates/*
+build/
+dist/
+intersection_proximity.egg-info/
+intersection_proximity_nchowder.egg-info/
