@@ -9,8 +9,8 @@ $ pip install -r requirements.txt
 ```
 
 Usage:
-Create an intersection proximity object, then call compute_proximity(lat, lng). It will
-return the result tuple (absolute_dist_in_meters, middleness_percentage).
+Create an intersection proximity object, then call `compute_proximity(lat, lng)`. It will
+return the result tuple `(absolute_dist_in_meters, middleness_percentage)`.
 ```python
 >>> import intersection_proximity 
 >>> input_files = intersection_proximity.default_settings['seattle']
