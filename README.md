@@ -12,10 +12,16 @@ Usage:
 Create an intersection proximity object, then call compute_proximity(lat, lng). It will
 return the result tuple (absolute_dist_in_meters, middleness_percentage).
 ```python
->>> import intersection_proximity
->>> intersection_proximity.compute_proximity(38.91572572043545,-77.03992009162903)
-(198.88772971857827, 90.87609851973484)
->>>
+>>> import intersection_proximity 
+>>> input_files = intersection_proximity.default_settings['seattle']
+>>> ip = intersection_proximity.IntersectionProximity(input_files)
+Building street name->edge name map... Done!
+Finding street intersections... Done!
+Generating street segments... Done!
+>>> ip.compute_proximity(47.658668, -122.349636)
+(32.59994951126359, 55.911741589344274)
+>>> ip.compute_proximity(47.658717, -122.349929)
+(7.865804175314517, 13.490546455238123)
 ```
 
 ### Understanding the output
@@ -25,3 +31,12 @@ To assist in debugging, a geojson representation of the street segment closest t
 uncomment the debug print lines in `intersection_proximity.py`.
 
 ### Other cities
+To use another city, just pass in a different `input_files` dictionary. These are structured as so:
+
+```
+{
+    'street_network_filename': 'roads-for-cv-seattle.geojson',
+    'osm_way_ids': 'osm-way-ids-seattle.csv',
+    'road_network_dump': 'seattle-roads.dbf',
+}
+```
