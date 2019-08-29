@@ -1,0 +1,1 @@
+from ._intersection_proximity import IntersectionProximity

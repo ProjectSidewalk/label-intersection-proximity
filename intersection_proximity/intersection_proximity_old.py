@@ -16,6 +16,8 @@ from .settings import *
 # segment is intersected with the box. Otherwise, you could get an inexact
 # solution, there is an exception checking this, though.
 
+global proximity_cache
+proximity_cache = dict()
 
 def distance(a, b):
     return math.sqrt((a[0]-b[0])**2 + (a[1]-b[1])**2)
@@ -120,18 +122,25 @@ def cut(line, distance):
 # --------------------------------------------
 
 
-def compute_proximity(label_lat, label_lng, debug=False):
+def compute_proximity(label_lat, label_lng, debug=False, cache=False):
     """
     Compute the intersection proximity, given the latitude and longitude of a label.
     :param label_lat:
     :param label_lng:
+    :param debug: Set to True to output the line segment closest to the label.
+    :param cache: Set to True to cache computations of intersection proximity.
+    If you are calling the function repeatedly with the same label, use this to save time.
     :return: A tuple (distance to intersection, middleness percent)
     """
     global street_network_index
     global real_segments
+
     # Index the street network if not done yet
     if street_network_index is None:
         street_network_index, real_segments = make_street_network_index(settings['seattle']['real_segments_output_filename'])
+
+    if cache and (label_lat, label_lng) in proximity_cache:
+        return proximity_cache[label_lat, label_lng]
 
     # Points to compute results for, in (lng, lat) form
     # Right now only the first point in this list is processed
@@ -195,6 +204,8 @@ def compute_proximity(label_lat, label_lng, debug=False):
         # print(shapely_line)
         print([', '.join([('%.6f' % k) for k in reversed(a)]) for a in list(shapely_line.coords)])
 
+    if cache:
+        proximity_cache[label_lat, label_lng] = distance_to_segment_end, middleness_pct
     return distance_to_segment_end, middleness_pct
 
 

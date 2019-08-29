@@ -242,15 +242,15 @@ def run_preprocess(city_settings):
     print('Done!')
 
 
-if __name__ == '__main__':
-    if len(sys.argv) == 1:
-        raise Exception('Please specify at least one city to pre-process.')
+# if __name__ == '__main__':
+#     if len(sys.argv) == 1:
+#         raise Exception('Please specify at least one city to pre-process.')
 
-    for i in range(1, len(sys.argv)):
-        if not sys.argv[i] in settings:
-            raise Exception('City %s not found in settings.py. ' % sys.argv[i])
+#     for i in range(1, len(sys.argv)):
+#         if not sys.argv[i] in settings:
+#             raise Exception('City %s not found in settings.py. ' % sys.argv[i])
 
-    for i in range(1, len(sys.argv)):
-        print('Running pre-processing for city: %s' % sys.argv[i])
-        run_preprocess(settings[sys.argv[i]])
-        print('Finished processing %s!' % sys.argv[i])
+#     for i in range(1, len(sys.argv)):
+#         print('Running pre-processing for city: %s' % sys.argv[i])
+#         run_preprocess(settings[sys.argv[i]])
+#         print('Finished processing %s!' % sys.argv[i])
