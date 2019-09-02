@@ -61,8 +61,6 @@ def generate_intersection_points(street_network_file, street_edge_name_file, int
     edge_to_name.set_index('street_edge_id', inplace=True)
 
     for edge_id, coords_list in edge_id_to_coords_list.items():
-        # if edge_id == 21648:
-        #     x = 0
         try:
             street_name = edge_to_name.loc[edge_id].street_name
         except KeyError:
@@ -81,14 +79,6 @@ def generate_intersection_points(street_network_file, street_edge_name_file, int
             elif pd.isna(street_name):
                 # Unnamed street, just represent it as an empty string
                 points_to_streets[point_lng, point_lat].add('')
-
-    # print ((-122327192, 47628370) in intersection_points)
-    # import random
-    # crop = random.sample(intersection_points, 10)
-    # with open(intersection_points_file, 'w') as f:
-    #     for (a, b) in intersection_points:
-    #         f.write(f'{a} {b}\n')
-    # print(len(intersection_points))
 
     # filter all points that aren't on > 1 streets
     intersection_points = dict()
@@ -241,16 +231,3 @@ def run_preprocess(city_settings):
                            city_settings['street_edge_name_filename'], city_settings['real_segments_output_filename'])
     print('Done!')
 
-
-# if __name__ == '__main__':
-#     if len(sys.argv) == 1:
-#         raise Exception('Please specify at least one city to pre-process.')
-
-#     for i in range(1, len(sys.argv)):
-#         if not sys.argv[i] in settings:
-#             raise Exception('City %s not found in settings.py. ' % sys.argv[i])
-
-#     for i in range(1, len(sys.argv)):
-#         print('Running pre-processing for city: %s' % sys.argv[i])
-#         run_preprocess(settings[sys.argv[i]])
-#         print('Finished processing %s!' % sys.argv[i])

@@ -126,10 +126,10 @@ def cut(line, distance):
 # --------------------------------------------
 
 class IntersectionProximity:
-    def __init__(self, input_files, cache_results=True, verbose=False, clear_intermediates=False):
+    def __init__(self, city_config, cache_results=True, verbose=False, clear_intermediates=False):
         """
         Create an IntersectionProximity object
-        :param input_files: Dictionary of the form:
+        :param city_config: Dictionary of the form:
         {
             'street_network_filename': 'roads-for-cv-seattle.geojson',
             'osm_way_ids': 'osm-way-ids-seattle.csv',
@@ -139,14 +139,15 @@ class IntersectionProximity:
         """
         self.cache = cache_results
         self.verbose = verbose
-        self.input_files = input_files
+        self.city_config = city_config
 
         if self.cache:
             self.proximity_cache = dict()
 
-        settings_hash = str(hashlib.sha256(json.dumps(self.input_files, sort_keys=True).encode()).hexdigest())
+        settings_hash = str(hashlib.sha256(json.dumps(self.city_config, sort_keys=True).encode()).hexdigest())
         intermediates_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "intermediates", settings_hash)
-     
+        intermediates_folder_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "intermediates")
+        
         self.intermediate_files = {
             # outputs from preprocessing
             'intersection_points_filename': 'intersection-points.pickle',
@@ -158,11 +159,14 @@ class IntersectionProximity:
             self.intermediate_files[key] = os.path.join(intermediates_path, self.intermediate_files[key])
         
         # merge the intermediate and input files to create a settings dictionary
-        self.settings = {**self.input_files, **self.intermediate_files}
+        self.settings = {**self.city_config, **self.intermediate_files}
 
         if clear_intermediates:
             shutil.rmtree(intermediates_path)
         
+        if not os.path.exists(intermediates_folder_path):
+            os.mkdir(intermediates_folder_path)
+
         if not os.path.exists(intermediates_path):
             os.mkdir(intermediates_path)
             run_preprocess(self.settings)

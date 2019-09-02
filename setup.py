@@ -5,8 +5,8 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="intersection-proximity-nchowder",
-    version="0.0.9",
-    author="Neil Chowdhury",
+    version="0.0.10",
+    author="Makeability Lab",
     author_email="neil.chowdhury@outlook.com",
     description="Compute the proximity from any point to a street intersection",
     long_description=long_description,
