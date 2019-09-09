@@ -1,6 +1,6 @@
 import os
 
-# All settings for the project are stored here.
+# All the default settings for the project are stored here.
 INFTY = 1000000
 MIN_SIZE = .0006
 street_network_index = None

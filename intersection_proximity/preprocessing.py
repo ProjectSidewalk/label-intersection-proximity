@@ -9,12 +9,16 @@ import pickle
 import sys
 from .settings import *
 
-multiplier = 1e5 # multiply all floats by this multiplier so we can compare them
-MIN_SIZE = .0006
+multiplier = 1e5 # multiply all floats by this multiplier so we can compare them as integers
+MIN_SIZE = .0006 # maximum distance (in terms of longitude/latitude) to "search" for nearby street segments
 MAX_DIST = 1/multiplier  # maximum distance between intersection and street for a street to to be cut
 
 
 def generate_street_edge_name_map(road_network_dump, osm_way_ids, street_edge_name_file):
+    """
+    Generate a map of street edge id -> street name using the osm_way_ids
+    This is needed for computing the street intersections later on.
+    """
     osm_data = pd.DataFrame(DBF(road_network_dump).records)
     osm_data.set_index('osm_id', inplace=True)
     street_name = osm_data['name']
@@ -29,8 +33,8 @@ def generate_street_edge_name_map(road_network_dump, osm_way_ids, street_edge_na
 def extract_street_coords_from_geojson(street):
     """
     Returns tuple mapping street edge id to a list of coordinate tuples
-    :param street:
-    :return:
+    :param street: A single street in the geojson file
+    :return: List of coordinate tuples, e.g. [[a1, b1], [a2, b2], [a3, b3], ...]
     """
     edge_id = street['properties']['street_edge_id']
     coords_generator = geojson.utils.coords(street)
@@ -41,6 +45,10 @@ def extract_street_coords_from_geojson(street):
 
 
 def generate_intersection_points(street_network_file, street_edge_name_file, intersection_points_file):
+    """
+    Find all the points that are intersections between two DIFFERENT streets.
+    This is what we classify as a street intersection for calculating proximity.
+    """
     with open(street_network_file) as f:
         streets_gj = geojson.load(f)
 
@@ -90,6 +98,9 @@ def generate_intersection_points(street_network_file, street_edge_name_file, int
         pickle.dump(intersection_points, f)
 
 def generate_real_segments(street_network_file, intersection_points_file, street_edge_name_file, real_segments_file):
+    """
+    Figure out what the "real" segments are from the street network, intersection points, ...
+    """
     with open(street_network_file) as f:
         streets_gj = geojson.load(f)
 
@@ -165,6 +176,10 @@ def generate_real_segments(street_network_file, intersection_points_file, street
 
 
 def get_rtree(lines):
+    """
+    Get an rtree index from a list of lines.
+    :param lines: list of lines [[[a, b], [c, d]], ...]
+    """
     def generate_items():
         sindx = 0
         for lid, l in lines:
@@ -181,7 +196,8 @@ def get_rtree(lines):
 
 def make_street_network_index(real_segments_file):
     '''
-    Make a street network index from a file with pickled real segments.
+    Make a street network index from a file with real segments that have been pickled.
+    The street network index uses rtree.
     :param real_segments_file: filename of real segments file
     :return:
     '''
