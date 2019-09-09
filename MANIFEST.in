@@ -1,0 +1,2 @@
+include intersection_proximity/intermediates/*
+include intersection_proximity/default_input/*

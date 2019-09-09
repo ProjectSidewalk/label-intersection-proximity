@@ -1,4 +1,10 @@
+dbfread==2.0.7
 geojson==2.4.1
+numpy==1.16.4
+pandas==0.24.2
 pyproj==1.9.6
+python-dateutil==2.8.0
+pytz==2019.1
 Rtree==0.8.3
 Shapely==1.6.4.post2
+six==1.12.0
